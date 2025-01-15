@@ -1,0 +1,67 @@
+name: "seafile"
+
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${SHARED_PASSWORD?:error}
+      MYSQL_LOG_CONSOLE: "true"
+      MARIADB_AUTO_UPGRADE: 1
+    volumes:
+      - ./data/db/data:/var/lib/mysql
+    networks:
+      - default
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/healthcheck.sh",
+          "--connect",
+          "--mariadbupgrade",
+          "--innodb_initialized",
+        ]
+      interval: 20s
+      start_period: 30s
+      timeout: 5s
+      retries: 10
+
+  memcached:
+    image: memcached:1.6.29
+    entrypoint: memcached -m 256
+    networks:
+      - default
+
+  app:
+    image: seafileltd/seafile-mc:12.0-latest
+    environment:
+      DB_HOST: "db"
+      DB_PORT: 3306
+      DB_USER: ${SHARED_USERNAME?:error}
+      DB_ROOT_PASSWD: ${SHARED_PASSWORD?:error}
+      DB_PASSWORD: ${SHARED_PASSWORD?:error}
+      SEAFILE_MYSQL_DB_CCNET_DB_NAME: "ccnet_db"
+      SEAFILE_MYSQL_DB_SEAFILE_DB_NAME: "seafile_db"
+      SEAFILE_MYSQL_DB_SEAHUB_DB_NAME: "seahub_db"
+      TIME_ZONE: "Europe/Moscow"
+      INIT_SEAFILE_ADMIN_EMAIL: ${APP_ADMIN_EMAIL?:error}
+      INIT_SEAFILE_ADMIN_PASSWORD: ${SHARED_PASSWORD?:error}
+      SEAFILE_SERVER_HOSTNAME: "sf.bonfire.rk"
+      SEAFILE_SERVER_PROTOCOL: "https"
+      SITE_ROOT: "/"
+      NON_ROOT: false
+      JWT_PRIVATE_KEY: ${APP_JWT?:error}
+      SEAFILE_LOG_TO_STDOUT: false
+    volumes:
+      - ./data/app/data:/shared
+    depends_on:
+      - db
+      - memcached
+    networks:
+      - default
+      - proxy
+
+networks:
+  default:
+    driver: bridge
+  proxy:
+    external: true

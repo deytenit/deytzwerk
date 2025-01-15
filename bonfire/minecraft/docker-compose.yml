@@ -1,0 +1,48 @@
+name: "minecraft"
+
+services:
+  nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    volumes:
+      - ./state/nginx/data:/etc/nginx
+      - ./data/alpha/data/bluemap/web:/var/www/bluemap:ro
+    networks:
+      - proxy
+
+  router: 
+    image: itzg/mc-router
+    restart: unless-stopped
+    environment:
+      MAPPING: |
+        mc.bonfire.rk=alpha:25565
+    ports:
+      - 25565:25565
+    networks:
+      novigrad:
+        ipv4_address: 10.1.2.2
+
+  alpha:
+    image: itzg/minecraft-server
+    tty: true
+    stdin_open: true
+    environment:
+      EULA: "TRUE"
+      TYPE: "PAPER"
+      VERSION: "1.21.1"
+      MEMORY: "4G"
+    volumes:
+      - ./data/alpha/data:/data
+    networks:
+      novigrad:
+        ipv4_address: 10.1.2.3
+
+networks:
+  novigrad:
+    name: "novigrad"
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.1.2.0/24
+  proxy:
+    external: true

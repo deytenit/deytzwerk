@@ -1,0 +1,117 @@
+#!/bin/python
+
+import os
+import sys
+import yaml
+from pathlib import Path
+
+def parse_arguments():
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate symlinks and directories for Docker Compose volumes and secrets.")
+    parser.add_argument("project", help="Name of the Docker Compose project (folder name).")
+    parser.add_argument("--data", required=True, help="Target of the ./data symlink without project name.")
+    parser.add_argument("--state", required=True, help="Target of the ./state symlink without project name.")
+    parser.add_argument("--secret", required=True, help="Target of the ./secret symlink without project name.")
+    return parser.parse_args()
+
+def create_symlink(source, target):
+    try:
+        if not target.exists():
+            target.symlink_to(source, target_is_directory=True)
+            print(f"Created symlink: {target} -> {source}")
+        elif not target.is_symlink() or target.readlink() != source:
+            print(f"Warning: {target} already exists and is not a valid symlink.")
+    except Exception as e:
+        print(f"Error creating symlink {target}: {e}")
+
+def process_volumes(volumes, project_name, data_target, state_target, project_path):
+    for volume in volumes:
+        parts = volume.split(":")
+        if len(parts) < 2:
+            continue
+        host_path = parts[0]
+        container_path = parts[1]
+        
+        if host_path.startswith("./data/"):
+            base_target = Path(data_target) / project_name
+        elif host_path.startswith("./state/"):
+            base_target = Path(state_target) / project_name
+        else:
+            continue
+
+        relative_path = Path(host_path).relative_to(f"./{host_path.split('/')[1]}")
+        full_path = base_target / relative_path
+
+        if not full_path.parent.exists():
+            full_path.parent.mkdir(parents=True)
+            print(f"Created service's volume: {full_path.parent}")
+        if not full_path.exists():
+            full_path.mkdir()
+            print(f"Created empty volume target: {full_path}")
+
+        symlink_path = project_path / host_path.split('/')[1]
+        create_symlink(base_target, symlink_path)
+	print(f"Symlinked volume: {base_target}")
+
+def process_secrets(secrets, project_name, secret_target, project_path):
+    base_target = Path(secret_target) / project_name
+    for secret, secret_info in secrets.items():
+        secret_file = Path(secret_info.get("file", ""))
+        if not secret_file:
+            continue
+
+        relative_path = secret_file.relative_to(f"./{secret_file.parts[1]}")
+        full_path = base_target / relative_path
+	shared_path = base_target / "shared"
+
+        if not full_path.parent.exists():
+            full_path.parent.mkdir(parents=True)
+            print(f"Created secret's parent directory: {full_path.parent}")
+	
+	create_symlink(shared_path, full_path.parent / "shared")
+        print(f"Symlinked shared secrets: {shared_path}")
+
+        if not full_path.exists():
+            full_path.touch()
+            print(f"Created secret: {full_path} (please fill it up manually)")
+
+        symlink_path = project_path / secret_file.parts[1]
+        create_symlink(base_target, symlink_path)
+	print(f"Symlinked secrets: {base_target}")
+
+    env_path = base_target / ".env"
+    project_env = project_path / ".env"
+    if env_path.exists() and not project_env.exists():
+        create_symlink(env_path, project_env)
+	print(f"Symlinked .env file: {full_path} (please fill it up manually) (!consider migrating to docker secrets!)")
+
+def main():
+    args = parse_arguments()
+
+    project_name = args.project
+    project_path = Path(__file__).parent.resolve()
+
+    if not project_path.exists():
+        print(f"Error: Project directory {project_path} does not exist.")
+        sys.exit(1)
+
+    compose_file = project_path / "docker-compose.yml"
+    if not compose_file.exists():
+        print(f"Error: {compose_file} does not exist.")
+        sys.exit(1)
+
+    with compose_file.open() as f:
+        compose_data = yaml.safe_load(f)
+
+    services = compose_data.get("services", {})
+    secrets = compose_data.get("secrets", {})
+
+    for service_name, service_data in services.items():
+        volumes = service_data.get("volumes", [])
+        process_volumes(volumes, project_name, args.data, args.state, project_path)
+
+    process_secrets(secrets, project_name, args.secret, project_path)
+
+if __name__ == "__main__":
+    main()
+

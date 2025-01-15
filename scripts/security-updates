@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Ensure the script stops on errors and prints commands for debugging
+set -e
+set -o pipefail
+
+# Function to display usage
+usage() {
+  echo "Usage: $0 <TELEGRAM_BOT_URL> <NODE>"
+  exit 1
+}
+
+# Validate arguments
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Error: Both TELEGRAM_BOT_URL and NODE arguments are required."
+  usage
+fi
+
+NODE="$1"
+TELEGRAM_BOT_URL="$2"
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S %Z")
+
+# Function to send messages via Telegram
+send_telegram_message() {
+  local status="$1"
+  local message="$2"
+  local text=$(cat <<EOF
+*Deytzwerk Security Updates*
+
+*Node*: $NODE
+*Timestamp*: $TIMESTAMP
+
+*$status*: $message
+EOF
+)
+  curl -s -X POST "$TELEGRAM_BOT_URL" \
+       -d "parse_mode=Markdown" \
+       -d "text=$text" > /dev/null
+}
+
+trap 'send_telegram_message "Error" "An unexpected error occurred while checking for updates."' ERR
+
+# Fetch updates
+apt-get update > /dev/null
+
+# List updates and filter for security ones
+UPDATES=$(apt-get --just-print upgrade | { grep "^Inst.*-security.*" || true; } | cut -d ' ' -f 2 | sort)
+
+if [ -z "$UPDATES" ]; then
+  send_telegram_message "Info" "No critical security updates are available."
+  exit 0
+else
+  UPDATES_COUNT=$(echo "$UPDATES" | wc -l)
+  FORMATTED_UPDATES=$(echo "$UPDATES" | awk '{printf "`%s`, ", $0}' | sed 's/, $//')
+  send_telegram_message "Updates Available" "$UPDATES_COUNT critical security updates found: $FORMATTED_UPDATES"
+fi

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# By Dave Dopson on https://stackoverflow.com/questions/59895/how-do-i-get-the-directory-where-a-bash-script-is-located-from-within-the-script
+SOURCE=${BASH_SOURCE[0]}
+while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "$SOURCE")
+  [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
+cd "$DIR"
+
+CONTACTS_DIR="$1"
+BIRTHDAYS_DIR="$2"
+
+shopt -s nullglob
+rm "$BIRTHDAYS_DIR"/*.ics
+for contact in "$CONTACTS_DIR"/*.vcf; do
+	./vcf-to-ics -i "$contact" -o "$BIRTHDAYS_DIR/$(basename "$contact" .vcf).ics" -n Birthdays
+done

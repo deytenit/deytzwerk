@@ -1,0 +1,52 @@
+name: "media"
+
+x-environment: &shared-environment
+  TZ: "Europe/Moscow"
+
+services:
+  flood:
+    image: jesec/flood
+    user: 0:0
+    environment:
+      <<: *shared-environment
+      HOME: /config
+    volumes:
+      - ./state/rtorrent/config:/config
+      - ./state/rtorrent/data:/data
+    command: --port 3001 --allowedpath /data
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  rtorrent:
+    image: jesec/rtorrent
+    user: 0:0
+    restart: unless-stopped
+    command: -o network.port_range.set=6881-6881,system.daemon.set=true
+    environment:
+      <<: *shared-environment
+      HOME: /config
+    volumes:
+      - ./state/rtorrent/config:/config
+      - ./state/rtorrent/data:/data
+    ports:
+      - 6881:6881
+
+  jellyfin:
+    image: jellyfin/jellyfin
+    volumes:
+      - ./state/jellyfin/data:/config
+      - ./state/jellyfin/cache:/cache
+      - ./state/jellyfin/media:/media
+
+      - ./state/rtorrent/data/media:/media2:ro
+    restart: unless-stopped
+    environment:
+      <<: *shared-environment
+      JELLYFIN_PublishedServerUrl: "http://jf.bonfire.rk"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

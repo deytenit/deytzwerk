@@ -1,0 +1,8 @@
+name: "quetza"
+
+services:
+  bot:
+    image: deytenit/quetza:latest
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${BOT_DISCORD_TOKEN:?error}

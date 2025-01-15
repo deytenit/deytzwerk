@@ -1,0 +1,41 @@
+name: "joplin"
+
+x-environment: &shared-environment
+  TZ: "Europe/Moscow"
+  POSTGRES_DB: "joplin"
+  POSTGRES_USER: ${SHARED_USERNAME?:error} 
+  POSTGRES_PASSWORD: ${SHARED_PASSWORD?:error}
+ 
+services:
+  db:
+    image: postgres:16
+    volumes:
+      - ./data/db/data:/var/lib/postgresql/data
+    restart: unless-stopped
+    environment:
+      <<: *shared-environment
+    networks:
+      - default
+
+  app:
+    image: etechonomy/joplin-server:latest
+    depends_on:
+      - db
+    restart: unless-stopped
+    environment:
+      <<: *shared-environment
+      APP_PORT: 22300
+      APP_BASE_URL: "http://jp.bonfire.rk"
+      DB_CLIENT: "pg"
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: "joplin"
+    networks:
+      - proxy
+      - default
+
+networks:
+  proxy:
+    external: true
+  default:
+    driver: bridge

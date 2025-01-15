@@ -1,0 +1,41 @@
+#!/bin/python
+
+import uuid
+import json
+import argparse
+
+def generate_vless_user(email, flow):
+    id = str(uuid.uuid4())
+
+    vless_user = {
+        "email": email,
+        "id": id,
+        "flow": flow,
+        "encryption": "none"
+    }
+    short_id = str(uuid.uuid4())[:8]
+
+    return vless_user, short_id
+
+def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Generate a VLESS user entry for xray-core.')
+    parser.add_argument('--email', required=True, help='Email for the VLESS user')
+    parser.add_argument('--flow', required=True, help='Flow type (e.g., "xtls-rprx-vision")')
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Generate the VLESS user entry
+    vless_user, short_id = generate_vless_user(args.email, args.flow)
+
+    # Print the VLESS user entry
+    print("VLESS User Entry:")
+    print(json.dumps(vless_user, indent=2))
+
+    # Print the generated short ID
+    print("\nGenerated Short ID (for REALITY):")
+    print(short_id)
+
+if __name__ == "__main__":
+    main()

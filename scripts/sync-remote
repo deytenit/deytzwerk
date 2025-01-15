@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Ensure the script stops on any error and is verbose for troubleshooting
+set -e
+set -o pipefail
+
+# Check if NODE argument is passed
+if [ -z "$1" ]; then
+  echo "Error: NODE argument is required"
+  exit 1
+fi
+
+# Check if Telegram bot URL argument is passed
+if [ -z "$2" ]; then
+  echo "Error: Telegram bot URL argument is required"
+  exit 1
+fi
+
+# Define the NODE, bot URL, and repository root
+NODE="$1"
+TELEGRAM_BOT_URL="$2"
+
+# Get the current date and time for the commit message and notification
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S %Z")
+
+REPOSITORY_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+
+# Function to send Telegram notifications
+send_telegram_message() {
+  local status="$1"
+  local message="$2"
+  local text=$(cat <<EOF
+*Deytzwerk Compose Sync*
+
+*Node*: $NODE
+*Timestamp*: $TIMESTAMP
+
+*$status*: $message
+EOF
+)
+  curl -s -X POST "$TELEGRAM_BOT_URL" \
+       -d "parse_mode=Markdown" \
+       -d "text=$(printf "$text")" > /dev/null
+}
+
+# Trap to handle errors
+trap 'send_telegram_message "Error" "An error occurred during sync. Manual intervention is required." && exit 1' ERR
+
+# Navigate to the repository root
+cd "$REPOSITORY_ROOT"
+
+# Ensure that the NODE directory exists
+if [ ! -d "$NODE" ]; then
+  send_telegram_message "Error" "Directory '$NODE' does not exist in the repository root."
+  exit 1
+fi
+
+# Add the NODE folder to the staging area
+git add "$NODE"
+
+# Create the "auto/{NODE}" branch if it doesn't exist and check out
+BRANCH="auto/$NODE"
+
+if ! git rev-parse --verify "$BRANCH" > /dev/null 2>&1; then
+  git checkout -b "$BRANCH"
+else
+  git checkout "$BRANCH"
+fi
+
+# Check if there are any changes staged for commit
+if ! git diff --cached --exit-code > /dev/null; then
+  git commit -m "[$NODE] Auto-commit: $TIMESTAMP"
+fi
+
+# Merge against master
+git fetch origin master
+git merge --squash origin/master
+if ! git diff --cached --exit-code > /dev/null; then
+  git commit -m "[master] Auto-merge: $TIMESTAMP"
+fi
+
+# Push the changes to the remote repository
+git push origin "$BRANCH"
+
+# Send success notification to Telegram
+send_telegram_message "Success" "Successfully synced \`$BRANCH\` with origin."

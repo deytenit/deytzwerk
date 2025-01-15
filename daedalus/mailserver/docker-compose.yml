@@ -1,0 +1,81 @@
+name: "mailserver"
+
+x-environment: &shared-environment
+  TZ: "Europe/Moscow"
+
+services:
+  dms:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    hostname: ${DMS_HOSTNAME:?error}
+    environment:
+      <<: *shared-environment
+      LOG_LEVEL: "info"
+      ENABLE_UPDATE_CHECK: 0
+      SPOOF_PROTECTION: 1
+      ENABLE_SRS: 0
+      ENABLE_OPENDKIM: 1
+      ENABLE_OPENDMARC: 1
+      ENABLE_POLICYD_SPF: 1
+      ENABLE_IMAP: 1
+      ENABLE_CLAMAV: 0
+      ENABLE_RSPAMD: 0
+      RSPAMD_LEARN: 0
+      RSPAMD_CHECK_AUTHENTICATED: 0
+      RSPAMD_GREYLISTING: 0
+      RSPAMD_HFILTER: 1
+      RSPAMD_HFILTER_HOSTNAME_UNKNOWN_SCORE: 6
+      RSPAMD_NEURAL: 0
+      ENABLE_AMAVIS: 1
+      AMAVIS_LOGLEVEL: 0
+      ENABLE_FAIL2BAN: 0
+      FAIL2BAN_BLOCKTYPE: "drop"
+      POSTSCREEN_ACTION: "enforce"
+      SSL_TYPE: "letsencrypt"
+      ENABLE_QUOTAS: 1
+      LOGROTATE_INTERVAL: "weekly"
+      LOGROTATE_COUNT: 4
+      POSTFIX_REJECT_UNKNOWN_CLIENT_HOSTNAME: 0
+      POSTFIX_INET_PROTOCOLS: "all"
+      ENABLE_MTA_STS: 0
+      DOVECOT_INET_PROTOCOLS: "all"
+      ENABLE_SPAMASSASSIN: 0
+      SPAMASSASSIN_SPAM_TO_INBOX: 1
+      MOVE_SPAM_TO_JUNK: 1
+      SA_TAG: "2.0"
+      SA_TAG2: "6.31"
+      SA_KILL: "10.0"
+      ENABLE_FETCHMAIL: 0
+      FETCHMAIL_POLL: 300
+      FETCHMAIL_PARALLEL: 0
+      ENABLE_GETMAIL: 0
+      GETMAIL_POLL: 5
+      DOVECOT_MAILBOX_FORMAT: "maildir"
+      ENABLE_POSTGREY: 0
+      POSTGREY_DELAY: 300
+      POSTGREY_MAX_AGE: 35
+      POSTGREY_TEXT: "Delayed by Postgrey"
+      POSTGREY_AUTO_WHITELIST_CLIENTS: 5
+      ENABLE_SASLAUTHD: 0
+      SRS_SENDER_CLASSES: "envelope_sender"
+      RELAY_PORT: 25
+    ports:
+      - "25:25"    # SMTP  (explicit TLS => STARTTLS, Authentication is DISABLED => use port 465/587 instead)
+      - "143:143"  # IMAP4 (explicit TLS => STARTTLS)
+      - "465:465"  # ESMTP (implicit TLS)
+      - "587:587"  # ESMTP (explicit TLS => STARTTLS)
+      - "993:993"  # IMAP4 (implicit TLS)
+    volumes:
+      - ./data/dms/data/:/var/mail/
+      - ./state/dms/state/:/var/mail-state/
+      - ./state/dms/logs/:/var/log/mail/
+      - ./state/dms/config/:/tmp/docker-mailserver/
+
+      - /etc/localtime:/etc/localtime:ro
+
+      - ./state/shared/certbot/data:/etc/letsencrypt:ro
+    restart: unless-stopped
+    stop_grace_period: 1m
+    healthcheck:
+      test: "ss --listening --tcp | grep -P 'LISTEN.+:smtp' || exit 1"
+      timeout: 3s
+      retries: 0

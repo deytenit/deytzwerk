@@ -1,0 +1,59 @@
+name: Automerge
+
+# Merging shall occur at 1:20 MSK,
+# so we must make sure that all of the auto/* branches are pushed till that time.
+on:
+  schedule:
+    - cron: "20 22 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  squash-merge-auto-branches:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: List Auto Branches
+        run: |
+          echo "Finding branches with prefix 'auto/'"
+          git fetch --all
+          BRANCHES=$(git branch -r | grep "origin/auto/" | sed 's|origin/||')
+          echo "Branches to squash merge:"
+          echo "$BRANCHES"
+          echo "$BRANCHES" > /tmp/branches.txt
+
+      - name: Squash Auto Merge Branches into Master
+        run: |
+          BRANCHES=$(cat /tmp/branches.txt)
+          git checkout master
+          CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          for BRANCH in $BRANCHES; do
+            CURRENT_BRANCH=$(git branch --show-current)
+            if [ "$CURRENT_BRANCH" != "master" ]; then
+              git checkout master
+            fi
+            git pull origin master
+            BRANCH_TAG=$(echo "$BRANCH" | sed 's|auto/||')
+            COMMIT_MESSAGE="[${BRANCH_TAG}] Auto-merge: $CURRENT_TIME"
+            if git merge --allow-unrelated-histories --squash "origin/$BRANCH"; then
+              git commit -a -m "$COMMIT_MESSAGE"
+              echo "Merge successful for branch $BRANCH."
+              git push origin master
+            else
+              echo "Merge conflict or error occurred for branch $BRANCH. Skipping..."
+              git merge --abort
+            fi
+          done
+
+      - name: Push Changes to Master
+        run: |
+          git push origin master

@@ -1,0 +1,13 @@
+# rk.bonfire
+
+bonfire/**/data
+bonfire/**/state
+bonfire/**/secret
+bonfire/**/.env
+
+# rk.daedalus
+
+daedalus/**/data
+daedalus/**/state
+daedalus/**/secret
+daedalus/**/.env
