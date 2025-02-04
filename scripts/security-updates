@@ -46,10 +46,7 @@ apt-get update > /dev/null
 # List updates and filter for security ones
 UPDATES=$(apt-get --just-print upgrade | { grep "^Inst.*-security.*" || true; } | cut -d ' ' -f 2 | sort)
 
-if [ -z "$UPDATES" ]; then
-  send_telegram_message "Info" "No critical security updates are available."
-  exit 0
-else
+if [ -n "$UPDATES" ]; then
   UPDATES_COUNT=$(echo "$UPDATES" | wc -l)
   FORMATTED_UPDATES=$(echo "$UPDATES" | awk '{printf "`%s`, ", $0}' | sed 's/, $//')
   send_telegram_message "Updates Available" "$UPDATES_COUNT critical security updates found: $FORMATTED_UPDATES"
