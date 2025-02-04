@@ -74,21 +74,22 @@ services:
       - ./state/nginx/www:/www
 
       - ./state/shared/certbot/data:/etc/letsencrypt:ro
-      - ./state/shared/certbot/www:/var/www/certbot
     networks:
       - proxy
 
   certbot:
-    image: certbot/certbot:latest
-    depends_on:
-      - nginx
-    command: >-
-      certonly --reinstall --webroot --webroot-path=/var/www/certbot
-      --email 'personal@ermnvldmr.com' --agree-tos --no-eff-email
-      -d ${CERTBOT_DOMAIN_ARG1} -d ${CERTBOT_DOMAIN_ARG2}
+    image: certbot/dns-cloudflare
+    entrypoint: >
+      sh -c "echo \"dns_cloudflare_api_token = $CERTBOT_CF_API_TOKEN\" > /tmp/cloudflare.ini &&
+      certbot certonly --dns-cloudflare
+      --dns-cloudflare-credentials /tmp/cloudflare.ini
+      --dns-cloudflare-propagation-seconds 15
+      $(echo \"$CERTBOT_DOMAINS\" | tr ',' '\\n' | sed -e 's/^/-d /g') 
+      --email $CERTBOT_EMAIL
+      --agree-tos
+      --no-eff-email"
     volumes:
       - ./state/shared/certbot/data:/etc/letsencrypt
-      - ./state/shared/certbot/www:/var/www/certbot
 
 secrets:
   watchtower-notification-url:
