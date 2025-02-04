@@ -81,6 +81,3 @@ fi
 
 # Push the changes to the remote repository
 git push origin "$BRANCH"
-
-# Send success notification to Telegram
-send_telegram_message "Success" "Successfully synced \`$BRANCH\` with origin."
