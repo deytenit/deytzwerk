@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
     environment:
       <<: *shared-environment
-      JELLYFIN_PublishedServerUrl: "http://jf.bonfire.rk"
+      JELLYFIN_PublishedServerUrl: "https://jef.ermnvldmr.com"
     networks:
       - proxy
 
