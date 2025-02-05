@@ -80,10 +80,26 @@ services:
     volumes:
       - ./state/nginx/data:/etc/nginx
       - ./state/nginx/www:/www
+
+      - ./state/shared/certbot/data:/etc/letsencrypt:ro
     networks:
       bonfire:
         ipv4_address: 10.1.1.5
       proxy:
+
+  certbot:
+    image: certbot/dns-cloudflare
+    entrypoint: >
+      sh -c "echo \"dns_cloudflare_api_token = $CERTBOT_CF_API_TOKEN\" > /tmp/cloudflare.ini &&
+      certbot certonly --dns-cloudflare
+      --dns-cloudflare-credentials /tmp/cloudflare.ini
+      --dns-cloudflare-propagation-seconds 15
+      $(echo \"$CERTBOT_DOMAINS\" | tr ',' '\\n' | sed -e 's/^/-d /g') 
+      --email $CERTBOT_EMAIL
+      --agree-tos
+      --no-eff-email"
+    volumes:
+      - ./state/shared/certbot/data:/etc/letsencrypt
 
   flame:
     image: pawelmalak/flame:multiarch
