@@ -1,0 +1,17 @@
+name: "vaultwarden"
+
+services:
+  server:
+    image: vaultwarden/server:latest
+    environment:
+      DOMAIN: "https://vlt.ermnvldmr.com"
+      SIGNUPS_ALLOWED: false
+    restart: unless-stopped
+    volumes:
+      - ./data/server/data:/data
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
