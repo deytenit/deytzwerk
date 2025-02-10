@@ -47,15 +47,13 @@ jobs:
             BRANCH_TAG=$(echo "$BRANCH" | sed 's|auto/||')
             COMMIT_MESSAGE="[${BRANCH_TAG}] Auto-merge: $CURRENT_TIME"
             if git merge --allow-unrelated-histories --squash "origin/$BRANCH"; then
-              git commit -a -m "$COMMIT_MESSAGE"
-              echo "Merge successful for branch $BRANCH."
-              git push origin master
+              if ! git diff --cached --exit-code > /dev/null; then
+                git commit -a -m "$COMMIT_MESSAGE"
+                echo "Merge successful for branch $BRANCH."
+                git push origin master
+              fi
             else
               echo "Merge conflict or error occurred for branch $BRANCH. Skipping..."
               git merge --abort
             fi
           done
-
-      - name: Push Changes to Master
-        run: |
-          git push origin master
