@@ -75,7 +75,9 @@ services:
 
       - ./state/shared/certbot/data:/etc/letsencrypt:ro
     networks:
-      - proxy
+      proxy:
+      daedalus:
+        ipv4_address: 10.0.1.5
 
   certbot:
     image: certbot/dns-cloudflare
