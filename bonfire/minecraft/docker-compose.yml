@@ -1,5 +1,8 @@
 name: "minecraft"
 
+x-environment: &shared-environment
+  TZ: "Europe/Moscow"
+
 services:
   nginx:
     image: nginx:latest
@@ -19,7 +22,7 @@ services:
     ports:
       - 25565:25565
     networks:
-      novigrad:
+      minecraft:
         ipv4_address: 10.1.2.2
 
   alpha:
@@ -34,12 +37,30 @@ services:
     volumes:
       - ./data/alpha/data:/data
     networks:
-      novigrad:
+      minecraft:
         ipv4_address: 10.1.2.3
 
+  backup:
+    image: itzg/mc-backup
+    depends_on:
+      alpha:
+        condition: service_healthy
+    environment:
+      <<: *shared-environment
+      BACKUP_INTERVAL: "0"
+      RCON_HOST: alpha
+      INITIAL_DELAY: 0
+      EXCLUDES: "*.jar,cache,logs,*.tmp,bluemap"
+    volumes:
+      - ./data/alpha/data:/data:ro
+      - ./backup/alpha/data:/backups
+    networks:
+      minecraft:
+        ipv4_address: 10.1.2.4
+
 networks:
-  novigrad:
-    name: "novigrad"
+  minecraft:
+    name: "minecraft"
     driver: bridge
     ipam:
       config:
