@@ -4,33 +4,23 @@ x-environment: &shared-environment
   TZ: "Europe/Moscow"
 
 services:
-  flood:
-    image: jesec/flood
-    user: 0:0
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
     environment:
       <<: *shared-environment
-      HOME: /config
+      PUID: 0
+      PGID: 0
+      WEBUI_PORT: 8080
+      TORRENTING_PORT: 6881
     volumes:
-      - ./state/rtorrent/config:/config
-      - ./state/rtorrent/data:/data
-    command: --port 3001 --allowedpath /data
-    restart: unless-stopped
-    networks:
-      - proxy
-
-  rtorrent:
-    image: jesec/rtorrent
-    user: 0:0
-    restart: unless-stopped
-    command: -o network.port_range.set=6881-6881,system.daemon.set=true
-    environment:
-      <<: *shared-environment
-      HOME: /config
-    volumes:
-      - ./state/rtorrent/config:/config
-      - ./state/rtorrent/data:/data
+      - ./state/qbittorrent/data:/config
+      - ./state/qbittorrent/downloads:/downloads
     ports:
       - 6881:6881
+      - 6881:6881/udp
+    networks:
+      - proxy
 
   jellyfin:
     image: jellyfin/jellyfin
@@ -39,7 +29,7 @@ services:
       - ./state/jellyfin/cache:/cache
       - ./state/jellyfin/media:/media
 
-      - ./state/rtorrent/data/media:/media2:ro
+      - ./state/qbittorrent/downloads/media:/media2:ro
     restart: unless-stopped
     environment:
       <<: *shared-environment

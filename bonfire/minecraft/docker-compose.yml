@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     environment:
       MAPPING: |
-        mc.bonfire.rk=alpha:25565
+        mcr.ermnvldmr.com=alpha:25565
     ports:
       - 25565:25565
     networks:
